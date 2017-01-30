@@ -59,21 +59,25 @@
   [heap]
   (double
    (if (even? (count heap))
-     (->> (h-take (-> (count heap) (/ 2) inc) heap)
-          reverse
-          (take 2)
-          (reduce + 0)
-          (* 0.5))
-     (last
-      (h-take (-> (count heap) inc (/ 2)) heap)))))
+     (let [n (-> (count heap) (/ 2) inc)
+           sorted (h-take n heap)]
+       (-> (sorted (dec n))
+           (+ (sorted (- n 2)))
+           (/ 2)))
+     (let [n (-> (count heap) inc (/ 2))]
+       ((h-take n heap) (dec n))))))
+
+(defn print-medians
+  [data]
+  (reduce (fn [heap x]
+            (let [h (hmin-insert heap x)]
+              (println (h-median h))
+              h))
+          []
+          data))
 
 (let [n (Integer/parseInt (read-line))
       ;; Input data.
       data (map (fn [_] (Integer/parseInt (read-line)))
                 (range n))]
-  (reduce (fn [heap x]
-            (let [h (h-insert heap x)]
-              (println (h-median h))
-              h))
-          []
-          data))
+  (print-medians data))
