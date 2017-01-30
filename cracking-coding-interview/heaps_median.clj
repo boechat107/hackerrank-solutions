@@ -4,16 +4,21 @@
   (-> (dec i) (/ 2) Math/floor int))
 
 (defn h-insert
-  "Insert elements into the min-heap."
-  [heap x]
+  "Insert elements into the heap. The first argument says if the heap is a max
+  or a min heap."
+  [op heap x]
   (let [go (fn [h i]
              (let [p-idx (parent-idx i)
                    parent (get h p-idx)]
-               (if (or (zero? i) (>= x parent))
+               (if (or (zero? i) (op x parent))
                  (assoc h i x)
                  (recur (assoc h, p-idx x, i parent)
                         p-idx))))]
     (go heap (count heap))))
+
+(def hmin-insert (partial h-insert >=))
+
+(def hmax-insert (partial h-insert <=))
 
 ;; Left and right children of an index.
 (def l-idx #(inc (* 2 %)))
