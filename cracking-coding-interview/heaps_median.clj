@@ -1,3 +1,11 @@
+;; ## Heaps: Find the Running Median
+
+;; The solution involves the usage of two heaps at the same time, as described
+;; in the reference below.
+
+;; Atkinson, Michael D., et al. "Min-max heaps and generalized priority queues."
+;; Communications of the ACM 29.10 (1986): 996-1000. APA
+
 (defn parent-idx
   "Returns the parent index of a given index."
   [i]
@@ -26,8 +34,8 @@
 (def r-idx #(+ 2 (* 2 %)))
 
 (defn h-pop
-  "Returns a new heap after getting its head."
-  [heap]
+  "Returns a new heap after removing the head of the given heap."
+  [op heap]
   (if (== 1 (count heap))
     []
     (let [x (peek heap)
@@ -38,47 +46,65 @@
                    ;; We keep the moving element as the parent of
                    ;; this sub-heap.
                    (or (and (nil? lx) (nil? rx))
-                       (and (nil? rx) (<= x lx))
-                       (and (<= x lx) (<= x rx)))
+                       (and (nil? rx) (op x lx))
+                       (and (op x lx) (op x rx)))
                    (assoc h i x)
                    ;; The element should be replaced by its left
                    ;; child.
-                   (or (nil? rx) (<= lx rx))
+                   (or (nil? rx) (op lx rx))
                    (recur (assoc h, i lx, li x) li)
                    ;; Replaced by its right child.
                    :else
                    (recur (assoc h, i rx, ri x) ri))))]
       (go (pop heap) 0))))
 
-(defn h-take
-  "Takes n elements from the min-heap, returning a vector."
-  [n heap]
-  (first
-   (reduce (fn [[ret h] _] [(conj ret (first h)) (h-pop h)])
-           [[] heap]
-           (range n))))
+(def hmin-pop (partial h-pop <=))
 
-(defn h-median
-  "[Int] -> Double
-  Returns the median of a heap."
-  [heap]
-  (double
-   (if (even? (count heap))
-     (let [n (-> (count heap) (/ 2) inc)
-           sorted (h-take n heap)]
-       (-> (sorted (dec n))
-           (+ (sorted (- n 2)))
-           (/ 2)))
-     (let [n (-> (count heap) inc (/ 2))]
-       ((h-take n heap) (dec n))))))
+(def hmax-pop (partial h-pop >=))
+
+(defn balance-heaps
+  "[Int], [Int] -> [[Int] [Int]]
+  Moves heap heads from one heap to the other if the difference of heap sizes
+  are greater than 1."
+  [max-heap min-heap]
+  (let [max-cnt (count max-heap)
+        min-cnt (count min-heap)]
+    (cond
+      (<= (Math/abs (- max-cnt min-cnt)) 1)
+      [max-heap min-heap]
+      ;;
+      (> max-cnt min-cnt)
+      [(hmax-pop max-heap) (hmin-insert min-heap (max-heap 0))]
+      ;;
+      :else
+      [(hmax-insert max-heap (min-heap 0)) (hmin-pop min-heap)])))
+
+(defn median
+  "[Int], [Int] -> Number
+  Returns the median of the two given heaps."
+  [max-heap min-heap]
+  (cond
+    (== (count max-heap) (count min-heap))
+    (-> (max-heap 0)
+        (+ (min-heap 0))
+        (/ 2))
+    ;;
+    (> (count max-heap) (count min-heap))
+    (max-heap 0)
+    ;;
+    :else (min-heap 0)))
 
 (defn print-medians
   [data]
-  (reduce (fn [heap x]
-            (let [h (hmin-insert heap x)]
-              (println (h-median h))
-              h))
-          []
+  (reduce (fn [[max-heap last-median min-heap] x]
+            (let [[max-h min-h] (if (> x last-median)
+                                  [max-heap (hmin-insert min-heap x)]
+                                  [(hmax-insert max-heap x) min-heap])
+                  [max-h min-h] (balance-heaps max-h min-h)
+                  median (median max-h min-h)]
+              (println (double median))
+              [max-h median min-h]))
+          [[] 0 []]
           data))
 
 (let [n (Integer/parseInt (read-line))
